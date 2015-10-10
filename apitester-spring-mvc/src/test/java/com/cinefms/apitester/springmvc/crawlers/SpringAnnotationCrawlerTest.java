@@ -15,18 +15,27 @@ import java.util.Map;
 
 import javax.servlet.ServletContext;
 
-import net.sf.cglib.proxy.Enhancer;
-import net.sf.cglib.proxy.NoOp;
-
+import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.context.support.GenericWebApplicationContext;
 
 import com.cinefms.apitester.core.ApitesterService;
 import com.cinefms.apitester.model.info.ApiCall;
+import com.cinefms.apitester.springmvc.crawlers.mapping.AbstractController2;
+import com.cinefms.apitester.springmvc.crawlers.mapping.AbstractControllerMethod;
+import com.cinefms.apitester.springmvc.crawlers.mapping.Controller3;
+import com.cinefms.apitester.springmvc.crawlers.mapping.ControllerImpl1;
+import com.cinefms.apitester.springmvc.crawlers.mapping.ControllerImpl2;
+import com.cinefms.apitester.springmvc.crawlers.mapping.ControllerImpl3;
+import com.cinefms.apitester.springmvc.crawlers.mapping.ControllerMethod;
+import com.cinefms.apitester.springmvc.crawlers.mapping.ControllerMethodImpl;
+
+import net.sf.cglib.proxy.Enhancer;
+import net.sf.cglib.proxy.NoOp;
 
 public class SpringAnnotationCrawlerTest {
 
@@ -386,28 +395,64 @@ public class SpringAnnotationCrawlerTest {
 	}
 	
 	@Test
-	public void testGenericController() {
-		ApplicationContext acc = mock(ApplicationContext.class);
-		
-		Map<String,Object> cMap = new HashMap<String, Object>();
-		Map<String,Object> rcMap = new HashMap<String, Object>();
-		Object a = new GenericTestControllerImpl();
-		rcMap.put("a",a);
-		
-		when(acc.getBeansWithAnnotation(Controller.class)).thenReturn(cMap);
-		when(acc.getBeansWithAnnotation(RestController.class)).thenReturn(rcMap);
-		
+	public void testGenericControllerRequestMapping_implmenation(){
 		SpringAnnotationCrawler sac = new SpringAnnotationCrawler();
-		sac.setApplicationContext(acc);
-		sac.setService(new ApitesterService());
-		
-		List<ApiCall> calls = sac.getApiCalls();
-		
-		assertEquals(3, calls.size());
-		//assertEquals("java.lang.String", calls.get(0).getReturnType().getReturnClass().getClassName());
-		assertEquals("put", calls.get(1).getHandlerMethod());
-		assertEquals(1, calls.get(1).getPathParameters().size());
-		
+		RequestMapping actual = sac.getClassAnnotation(ControllerImpl1.class, RequestMapping.class);
+
+		RequestMapping expect = ControllerImpl1.class.getAnnotation(RequestMapping.class);
+	
+		Assert.assertEquals(expect.value()[0], actual.value()[0]);
 	}
 	
+	@Test
+	public void testGenericControllerRequestMapping_abstract(){
+		SpringAnnotationCrawler sac = new SpringAnnotationCrawler();
+		RequestMapping actual = sac.getClassAnnotation(ControllerImpl2.class, RequestMapping.class);
+
+		RequestMapping expect = AbstractController2.class.getAnnotation(RequestMapping.class);
+	
+		Assert.assertEquals(expect.value()[0], actual.value()[0]);
+	}
+	
+	@Test
+	public void testGenericControllerRequestMapping_interface(){
+		SpringAnnotationCrawler sac = new SpringAnnotationCrawler();
+		RequestMapping actual = sac.getClassAnnotation(ControllerImpl3.class, RequestMapping.class);
+
+		RequestMapping expect = Controller3.class.getAnnotation(RequestMapping.class);
+		Assert.assertEquals(expect.value()[0], actual.value()[0]);
+	}
+	
+	@Test
+	public void testGenericMethodRequestMapping_implmenation() throws NoSuchMethodException, SecurityException{
+		SpringAnnotationCrawler sac = new SpringAnnotationCrawler();
+		
+		RequestMapping actual = sac.getMethodAnnotation(ControllerMethodImpl.class.getMethod("testMethod", String.class, String.class), RequestMapping.class);
+
+		RequestMapping expect = ControllerMethodImpl.class.getMethod("testMethod", String.class, String.class).getAnnotation(RequestMapping.class);
+	
+		Assert.assertEquals(expect.value()[0], actual.value()[0]);
+	}
+	
+	@Test
+	public void testGenericMethodRequestMapping_abstract() throws NoSuchMethodException, SecurityException{
+		SpringAnnotationCrawler sac = new SpringAnnotationCrawler();
+		
+		RequestMapping actual = sac.getMethodAnnotation(ControllerMethodImpl.class.getMethod("testMethod", Long.class), RequestMapping.class);
+
+		RequestMapping expect = AbstractControllerMethod.class.getMethod("testMethod", Long.class).getAnnotation(RequestMapping.class);
+	
+		Assert.assertEquals(expect.value()[0], actual.value()[0]);
+	}
+	
+	@Test
+	public void testGenericMethodRequestMapping_interface() throws NoSuchMethodException, SecurityException{
+		SpringAnnotationCrawler sac = new SpringAnnotationCrawler();
+		
+		RequestMapping actual = sac.getMethodAnnotation(ControllerMethodImpl.class.getMethod("testMethod", String.class), RequestMapping.class);
+
+		RequestMapping expect = ControllerMethod.class.getMethod("testMethod", String.class).getAnnotation(RequestMapping.class);
+	
+		Assert.assertEquals(expect.value()[0], actual.value()[0]);
+	}
 }

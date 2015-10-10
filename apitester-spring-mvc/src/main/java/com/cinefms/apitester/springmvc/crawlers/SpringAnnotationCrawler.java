@@ -2,6 +2,7 @@ package com.cinefms.apitester.springmvc.crawlers;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
@@ -20,10 +21,10 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.ServletContextAware;
 
 import com.cinefms.apitester.annotations.ApiDescription;
@@ -110,21 +111,23 @@ public class SpringAnnotationCrawler implements ApiCrawler, ApplicationContextAw
 		if (ctx.getId() != null) {
 			namespace = ctx.getId();
 		}
-		List<ApiCall> outa = scanControllers(namespace, new ArrayList<Object>(ctx.getBeansWithAnnotation(Controller.class).values()));
-		List<ApiCall> outb = scanControllers(namespace, new ArrayList<Object>(ctx.getBeansWithAnnotation(RestController.class).values()));
-		outa.addAll(outb);
-		return outa;
+		return scanControllers(namespace, new ArrayList<Object>(ctx.getBeansWithAnnotation(Controller.class).values()));
 	}
 
+	public <T extends Annotation> T getClassAnnotation(Class<?> clazz, Class<T> annotationClass){
+		return AnnotationUtils.findAnnotation(clazz, annotationClass);
+	}
+	
+	public <T extends Annotation> T getMethodAnnotation(Method method, Class<T> annotationClass){
+		return AnnotationUtils.findAnnotation(method, annotationClass);
+	}
+	
 	public List<ApiCall> scanControllers(String namespace, List<Object> controllers) {
 
 		List<ApiCall> out = new ArrayList<ApiCall>();
 
 		for (Object controller : controllers) {
-
-			// com.cinefms.apitester.springmvc.crawlers.TestController2$$EnhancerByCGLIB$$84793797
-
-			Class<?> clazz = controller.getClass();
+			Class<?> clazz = controller.getClass();			
 			
 			String handlerClass = clazz.getName();
 			
@@ -135,8 +138,6 @@ public class SpringAnnotationCrawler implements ApiCrawler, ApplicationContextAw
 				} catch (ClassNotFoundException e) {
 				}
 			}
-			
-			
 
 			log.info(" ##  FOUND " + controllers.size() + " CONTROLLERS ... " + handlerClass);
 
@@ -144,7 +145,7 @@ public class SpringAnnotationCrawler implements ApiCrawler, ApplicationContextAw
 
 			String[] classLevelPaths = new String[] { "" };
 
-			RequestMapping rmType = (RequestMapping) clazz.getAnnotation(RequestMapping.class);
+			RequestMapping rmType = getClassAnnotation(clazz, RequestMapping.class);
 			if (rmType != null) {
 				classLevelPaths = rmType.value();
 			}
@@ -157,10 +158,12 @@ public class SpringAnnotationCrawler implements ApiCrawler, ApplicationContextAw
 					String deprecatedSince = null;
 					String since = null;
 					boolean deprecated = false;
-					if (m.getAnnotation(Deprecated.class) != null) {
-						deprecated = true;
+					
+					if(getMethodAnnotation(m, Deprecated.class)!=null){
+						deprecated = true;						
 					}
-					ApiDescription ad = m.getAnnotation(ApiDescription.class);
+					
+					ApiDescription ad = getMethodAnnotation(m, ApiDescription.class);
 					if (ad != null) {
 						if (ad.deprecatedSince().length() > 0) {
 							deprecatedSince = ad.deprecatedSince();
@@ -173,13 +176,12 @@ public class SpringAnnotationCrawler implements ApiCrawler, ApplicationContextAw
 							description = ad.value();
 						}
 						if (ad.file().length() > 0) {
-							description = loadResource(clazz,
-									ad.file());
+							description = loadResource(clazz,ad.file());
 						}
 					}
 
 					String handlerMethod = m.getName();
-					RequestMapping rmm = m.getAnnotation(RequestMapping.class);
+					RequestMapping rmm = getMethodAnnotation(m, RequestMapping.class);
 
 					if (rmm != null) {
 
